@@ -1,0 +1,95 @@
+---
+title: "R Notebook"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+
+
+```{r, message=FALSE, echo=FALSE}
+if (!require("BiocManager")) {
+  install.packages("BiocManager", ask =FALSE)
+  library("BiocManager")
+}
+if (!require("limma")) {
+  BiocManager::install("limma", ask =FALSE)
+  library("limma")
+}
+if (!require("ggplot2")) {
+  BiocManager::install("ggplot2", ask =FALSE)
+  library("ggplot2")
+}
+if (!require("moments")) {
+  install.packages("moments", ask =FALSE)
+  library("moments")
+}
+
+```
+
+# Non Normal
+Dear Maja, your data doesn´t have a normal (bell-shaped) distribution, as you can see in the figure 1. That hampers the use of parametric methods/tests, including the classical One-way Anova.  
+<br><br>
+<br><br>
+
+
+```{r,  message=FALSE, echo=FALSE}
+path2yourdf <- c("/media/rmejia/mountme88/Projects/Maja/Data/Mouse_data_cast.csv")
+# your table should have the column name "Groups" 
+
+# varofint <- myargs[1] # col_name_of_your_variable_of_interest
+varofint <- "cast_no_NMA"  # col_name_of_your_variable_of_interest
+##
+df <- read.table(path2yourdf, sep="\t", header=TRUE)
+df_splitted <- split(df,df$Groups)
+
+#lapply(df_splitted, function(x){sd(x[,varofint]) } )
+
+p<- ggplot( df, aes(x=cast_no_NMA, color=Groups))+
+  geom_density() +
+  ggtitle("Figure 1")
+p
+```
+
+
+```{r,  message=FALSE, echo=FALSE}
+df$Groups <- as.factor(df$Groups)
+Group1 <- BiocGenerics::subset(df, Groups == "C57BL/6")
+Group2 <- BiocGenerics::subset(df, Groups == "THP-/-")
+Group3 <- BiocGenerics::subset(df, Groups == "TLR4-/-")
+```
+# Different variances
+In such condition, it could be used a non-parametric option like Kruskal wallis test. But, the data also have different variances (thus, standard deviations), this extra condition annoys KW.
+
+You can see in the following chunk of code the sd of the groups 
+
+```{r,  message=FALSE, echo=FALSE}
+lapply(df_splitted, function(x){sd(x[,varofint]) } )
+```
+
+
+
+
+Here a test (Barlett´s test) that confirms such a sd difference is significative
+```{r,  message=FALSE, echo=FALSE}
+bartlett.test(cast_no_NMA ~ Groups, data= df)
+```
+
+
+
+If we forget for a moment "such warning" and apply KW test, anyway we get a p-value very big :/ 
+```{r,  message=FALSE, echo=FALSE}
+kruskal.test(cast_no_NMA ~ Groups, data= df)
+```
+
+# Welch´s ANOVA
+
+Welch´s ANOVA is a tool for data with different variances, but still requires normality or normality of the residuals (such assumptios are not fulfilled by your data). If we "just look at another side" beeing too lenient and we apply the method anyway, we get again non significative p-values.
+
+```{r,  message=FALSE, echo=FALSE}
+oneway.test(cast_no_NMA ~ Groups, data= df, var.equal = FALSE)
+```
+
+# Final suggestion
+
+I have the feeling that maybe "some juice" (significative difference) could be extracted from your data. Perhaps applying GLM with an appropriate distribution (Negative binomial regression maybe) with a posterior adjustment. But I would require more time to explore that possibility and my schedule is a little inflexible lately (maybe after finish the analysis of the exome data that we just received). 
+
